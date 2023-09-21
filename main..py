@@ -1,5 +1,6 @@
 import telebot
 from docx import Document
+from telebot.apihelper import ApiTelegramException
 import io
 import Levenshtein
 import sqlite3
@@ -174,6 +175,21 @@ def send_welcome(message):
 """
     bot.send_message(message.chat.id, instruction, reply_markup=markup)
 
+def notify_all_users(message_text):
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    for row in cursor.execute('SELECT chat_id FROM users'):
+        chat_id = row[0]
+        try:
+            bot.send_message(chat_id, message_text)
+        except ApiTelegramException as e:
+            if e.result.status_code == 403:
+                print(f"Пользователь {chat_id} заблокировал бота. Пропускаем.")
+                continue  # Пропустить этого пользователя и продолжить цикл
+            else:
+                raise e  # Если это другая ошибка, поднимаем исключение
+    conn.close()
+
 @bot.message_handler(content_types=['document'])
 def handle_docs(message):
     add_or_update_user(message.chat.id, message.from_user.first_name, message.from_user.last_name, message.from_user.username)
@@ -192,6 +208,8 @@ def handle_docs(message):
             bot.reply_to(message, "Пожалуйста, загрузите документ в формате .docx.")
     else:
         bot.send_message(message.chat.id, "Только админ может загрузить новое расписание.")
+
+
 
 @bot.message_handler(func=lambda message: message.text == 'Узнать расписание')
 def ask_for_schedule(message):
