@@ -4,9 +4,36 @@ from telebot.apihelper import ApiTelegramException
 import io
 import Levenshtein
 import sqlite3
+import os
 
 bot = telebot.TeleBot('6303559793:AAGysyRYVE0v_WCROLLDYXh9ApFbm4CmhYo')
 ADMIN_CHAT_ID = 2099795903
+
+# Директория для хранения файла расписания
+SCHEDULE_DIR = 'schedule_files'
+if not os.path.exists(SCHEDULE_DIR):
+    os.makedirs(SCHEDULE_DIR)
+SCHEDULE_FILE_NAME = 'schedule.docx'
+
+def save_schedule_file(downloaded_file):
+    schedule_file_path = os.path.join(SCHEDULE_DIR, SCHEDULE_FILE_NAME)
+    
+    # Удаление старого файла расписания
+    if os.path.exists(schedule_file_path):
+        os.remove(schedule_file_path)
+    
+    # Сохранение нового файла расписания
+    with open(schedule_file_path, 'wb') as f:
+        f.write(downloaded_file.read())
+
+def load_schedule_file():
+    schedule_file_path = os.path.join(SCHEDULE_DIR, SCHEDULE_FILE_NAME)
+    
+    if os.path.exists(schedule_file_path):
+        with open(schedule_file_path, 'rb') as f:
+            return f.read()
+    return None
+
 
 schedule_dict = {}
 teacher_schedule_dict = {}
@@ -200,16 +227,27 @@ def handle_docs(message):
         if message.document.mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
             file_info = bot.get_file(message.document.file_id)
             downloaded_file = bot.download_file(file_info.file_path)
-            with io.BytesIO(downloaded_file) as docx_file:
+
+            # Удаляем старый файл расписания, если он существует
+            for filename in os.listdir(SCHEDULE_DIR):
+                if filename.endswith('.docx'):
+                    os.remove(os.path.join(SCHEDULE_DIR, filename))
+
+            # Сохраняем новый файл расписания
+            new_schedule_path = os.path.join(SCHEDULE_DIR, f"schedule_{message.document.file_name}")
+            with open(new_schedule_path, 'wb') as new_file:
+                new_file.write(downloaded_file)
+
+            with open(new_schedule_path, 'rb') as docx_file:
                 schedule_dict = improved_parse_schedule(docx_file)
+
             bot.reply_to(message, "Расписание успешно обновлено!")
             notify_all_users("Расписание было обновлено администратором! Запросите актуальное расписание.")
         else:
             bot.reply_to(message, "Пожалуйста, загрузите документ в формате .docx.")
     else:
         bot.send_message(message.chat.id, "Только админ может загрузить новое расписание.")
-    safe_send_message(message.chat.id, 'Your message here')
-
+        safe_send_message(message.chat.id, 'Your message here')
 
 @bot.message_handler(func=lambda message: message.text == 'Узнать расписание')
 def ask_for_schedule(message):
@@ -302,7 +340,8 @@ def specialty_callback(call):
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=response)
     else:
         bot.send_message(call.message.chat.id, "Извините, информация о данной специальности отсутствует.")
-    safe_send_message(message.chat.id, 'Your message here')
+    
+    safe_send_message(call.message.chat.id, 'Your message here')  # Использовано call.message.chat.id
 
 @bot.message_handler(func=lambda m: True)
 def send_schedule(message):
