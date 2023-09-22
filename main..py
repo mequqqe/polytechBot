@@ -1,3 +1,4 @@
+import time
 import telebot
 from docx import Document
 from telebot.apihelper import ApiTelegramException
@@ -5,6 +6,7 @@ import io
 import Levenshtein
 import sqlite3
 import os
+import requests 
 
 bot = telebot.TeleBot('6303559793:AAGysyRYVE0v_WCROLLDYXh9ApFbm4CmhYo')
 ADMIN_CHAT_ID = 2099795903
@@ -145,7 +147,6 @@ def improved_parse_schedule(docx_file):
     doc = Document(docx_file)
     time_intervals = [cell.text.strip() for cell in doc.tables[0].rows[0].cells][1::2]
     schedule = {}
-
     for table in doc.tables:
         for row in table.rows:
             cells = [cell.text.strip() for cell in row.cells]
@@ -175,6 +176,12 @@ def improved_parse_schedule(docx_file):
                     teacher_schedule_dict[teacher][current_interval] = {'room': room, 'group': group}
 
     return schedule
+
+
+loaded_schedule = load_schedule_file()
+if loaded_schedule:
+    with io.BytesIO(loaded_schedule) as docx_file:
+        schedule_dict = improved_parse_schedule(docx_file)
 
 def find_closest_key(input_str, possible_keys):
     if not possible_keys:
@@ -374,7 +381,20 @@ def send_schedule(message):
         response = f"Извините, расписание для {query} не найдено. Вы имели в виду группу {closest_group} или преподавателя {closest_teacher}?"
 
     safe_send_message(message.chat.id, response) 
-bot.polling()
+
+def ping_telegram():
+    try:
+        response = requests.get("https://api.telegram.org")
+        return response.status_code == 200
+    except:
+        return False
+    
+while True:
+    try:
+        bot.polling(none_stop=True)
+    except Exception as e:
+        print(f"Network error: {e}")
+        time.sleep(15)
 
 
 
