@@ -247,7 +247,7 @@ def handle_docs(message):
             bot.reply_to(message, "Пожалуйста, загрузите документ в формате .docx.")
     else:
         bot.send_message(message.chat.id, "Только админ может загрузить новое расписание.")
-        safe_send_message(message.chat.id, 'Your message here')
+        
 
 @bot.message_handler(func=lambda message: message.text == 'Узнать расписание')
 def ask_for_schedule(message):
@@ -255,17 +255,17 @@ def ask_for_schedule(message):
         bot.send_message(message.chat.id, "Расписание еще не было загружено администратором. Пожалуйста, повторите попытку позже.")
     else:
         bot.send_message(message.chat.id, "Введите название вашей группы или имя преподавателя:")
-    safe_send_message(message.chat.id, 'Your message here')
+    
 
 @bot.message_handler(func=lambda message: message.text == 'Оставить отзыв')
 def leave_feedback(message):
     bot.send_message(message.chat.id, "Пожалуйста, введите ваш отзыв или предложение. Вы можете завершить ввод, отправив команду /end.")
     feedback_users[message.chat.id] = ""
-    safe_send_message(message.chat.id, 'Your message here')
+    
 @bot.message_handler(func=lambda m: m.chat.id in feedback_users and m.text != '/end')
 def collect_feedback(message):
     feedback_users[message.chat.id] += message.text + "\n"
-    safe_send_message(message.chat.id, 'Your message here')
+    
 
 @bot.message_handler(func=lambda m: m.text == '/end' and m.chat.id in feedback_users)
 def end_feedback(message):
@@ -282,8 +282,7 @@ def end_feedback(message):
     
     bot.send_message(ADMIN_CHAT_ID, feedback_message)
     bot.reply_to(message, "Спасибо за ваш отзыв!")
-    safe_send_message(message.chat.id, 'Your message here')
-
+ 
 
 @bot.message_handler(commands=['broadcast'])
 def start_broadcast_mode(message):
@@ -292,7 +291,6 @@ def start_broadcast_mode(message):
         broadcast_mode = True
         bot.reply_to(message, "Вы активировали режим рассылки. Все ваши следующие сообщения будут отправлены всем пользователям. Чтобы завершить рассылку, отправьте команду /endbroadcast.")
         return
-    safe_send_message(message.chat.id, 'Your message here')
 
 @bot.message_handler(commands=['endbroadcast'])
 def stop_broadcast_mode(message):
@@ -301,12 +299,12 @@ def stop_broadcast_mode(message):
         broadcast_mode = False
         bot.reply_to(message, "Вы завершили режим рассылки.")
         return
-    safe_send_message(message.chat.id, 'Your message here')
+
 
 @bot.message_handler(func=lambda m: broadcast_mode and m.chat.id == ADMIN_CHAT_ID)
 def send_broadcast(message):
     notify_all_users(message.text)
-    safe_send_message(message.chat.id, 'Your message here')
+    
 
 @bot.message_handler(func=lambda message: message.text == 'Информация про колледж')
 def college_info(message):
@@ -322,7 +320,7 @@ def college_info(message):
         else:
             print(f"Warning: Callback data '{specialty}' is too long and will be skipped.")
     bot.send_message(message.chat.id, "Выберите специальность:", reply_markup=markup)
-    safe_send_message(message.chat.id, 'Your message here')
+ 
 
 @bot.callback_query_handler(func=lambda call: True)
 def specialty_callback(call):
@@ -341,7 +339,7 @@ def specialty_callback(call):
     else:
         bot.send_message(call.message.chat.id, "Извините, информация о данной специальности отсутствует.")
     
-    safe_send_message(call.message.chat.id, 'Your message here')  # Использовано call.message.chat.id
+  
 
 @bot.message_handler(func=lambda m: True)
 def send_schedule(message):
@@ -369,7 +367,6 @@ def send_schedule(message):
         response = f"Извините, расписание для {query} не найдено. Вы имели в виду группу {closest_group} или преподавателя {closest_teacher}?"
 
     bot.reply_to(message, response)
-    safe_send_message(message.chat.id, 'Your message here')
 bot.polling()
 
 
