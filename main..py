@@ -1,3 +1,4 @@
+import glob
 import time
 import telebot
 from docx import Document
@@ -15,10 +16,9 @@ ADMIN_CHAT_ID = 2099795903
 SCHEDULE_DIR = 'schedule_files'
 if not os.path.exists(SCHEDULE_DIR):
     os.makedirs(SCHEDULE_DIR)
-SCHEDULE_FILE_NAME = 'schedule.docx'
 
 def save_schedule_file(downloaded_file):
-    schedule_file_path = os.path.join(SCHEDULE_DIR, SCHEDULE_FILE_NAME)
+    schedule_file_path = os.path.join(SCHEDULE_DIR)
     
     # Удаление старого файла расписания
     if os.path.exists(schedule_file_path):
@@ -28,12 +28,22 @@ def save_schedule_file(downloaded_file):
     with open(schedule_file_path, 'wb') as f:
         f.write(downloaded_file.read())
 
+def load_latest_schedule():
+    list_of_files = glob.glob(os.path.join(SCHEDULE_DIR, '*.docx')) 
+    latest_file = max(list_of_files, key=os.path.getctime)
+    print(f"Loading schedule from {latest_file}")
+    with open(latest_file, 'rb') as f:
+        return f.read()
+
 def load_schedule_file():
-    schedule_file_path = os.path.join(SCHEDULE_DIR, SCHEDULE_FILE_NAME)
+    schedule_file_path = os.path.join(SCHEDULE_DIR)
     
     if os.path.exists(schedule_file_path):
+        print(f"Loading schedule from {schedule_file_path}")  # Добавлено для диагностики
         with open(schedule_file_path, 'rb') as f:
             return f.read()
+    else:
+        print(f"Schedule file {schedule_file_path} not found")  # Добавлено для диагностики
     return None
 
 
@@ -178,7 +188,7 @@ def improved_parse_schedule(docx_file):
     return schedule
 
 
-loaded_schedule = load_schedule_file()
+loaded_schedule = load_latest_schedule()
 if loaded_schedule:
     with io.BytesIO(loaded_schedule) as docx_file:
         schedule_dict = improved_parse_schedule(docx_file)
