@@ -84,6 +84,13 @@ def safe_send_message(chat_id, message_text):
         if e.result.status_code == 403:
             print(f'User {chat_id} has blocked the bot.')
 
+def safe_reply_to(message, text):
+    try:
+        bot.reply_to(message, text)
+    except ApiTelegramException as e:
+        if e.result.status_code == 403:
+            print(f'User {message.chat.id} has blocked the bot.')
+
 def insert_specialty(name, qualification, study_duration, study_form, study_language, description):
     conn = sqlite3.connect('specialties.db')
     cursor = conn.cursor()
@@ -180,15 +187,12 @@ def find_closest_key(input_str, possible_keys):
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     add_or_update_user(message.chat.id, message.from_user.first_name, message.from_user.last_name, message.from_user.username)
-    # Создаем клавиатуру
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    # Добавляем на нее кнопки
     btn1 = telebot.types.KeyboardButton('Узнать расписание')
     btn2 = telebot.types.KeyboardButton('Оставить отзыв')
     btn3 = telebot.types.KeyboardButton('Информация про колледж') 
     markup.add(btn1, btn2, btn3)
     
-    # Отправляем сообщение с приветствием, инструкцией и прикрепляем клавиатуру
     instruction = """
 Привет! Это бот Политехнического колледжа. 
 
@@ -199,7 +203,6 @@ def send_welcome(message):
 
 Что вы хотите сделать?
 """
-    bot.send_message(message.chat.id, instruction, reply_markup=markup)
     safe_send_message(message.chat.id, instruction)
 
 def notify_all_users(message_text):
@@ -208,7 +211,7 @@ def notify_all_users(message_text):
     for row in cursor.execute('SELECT chat_id FROM users'):
         chat_id = row[0]
         try:
-            bot.send_message(chat_id, message_text)
+           safe_send_message(chat_id, message_text)
         except ApiTelegramException as e:
             if e.result.status_code == 403:
                 print(f"Пользователь {chat_id} заблокировал бота. Пропускаем.")
@@ -241,25 +244,25 @@ def handle_docs(message):
             with open(new_schedule_path, 'rb') as docx_file:
                 schedule_dict = improved_parse_schedule(docx_file)
 
-            bot.reply_to(message, "Расписание успешно обновлено!")
+            safe_reply_to(message, "Расписание успешно обновлено!")
             notify_all_users("Расписание было обновлено администратором! Запросите актуальное расписание.")
         else:
-            bot.reply_to(message, "Пожалуйста, загрузите документ в формате .docx.")
+             safe_reply_to(message, "Пожалуйста, загрузите документ в формате .docx.")
     else:
-        bot.send_message(message.chat.id, "Только админ может загрузить новое расписание.")
+        safe_send_message(message.chat.id, "Только админ может загрузить новое расписание.")
         
 
 @bot.message_handler(func=lambda message: message.text == 'Узнать расписание')
 def ask_for_schedule(message):
     if not schedule_dict:
-        bot.send_message(message.chat.id, "Расписание еще не было загружено администратором. Пожалуйста, повторите попытку позже.")
+         safe_send_message(message.chat.id, "Расписание еще не было загружено администратором. Пожалуйста, повторите попытку позже.")
     else:
-        bot.send_message(message.chat.id, "Введите название вашей группы или имя преподавателя:")
+         safe_send_message(message.chat.id, "Введите название вашей группы или имя преподавателя:")
     
 
 @bot.message_handler(func=lambda message: message.text == 'Оставить отзыв')
 def leave_feedback(message):
-    bot.send_message(message.chat.id, "Пожалуйста, введите ваш отзыв или предложение. Вы можете завершить ввод, отправив команду /end.")
+    safe_send_message(message.chat.id, "Пожалуйста, введите ваш отзыв или предложение. Вы можете завершить ввод, отправив команду /end.")
     feedback_users[message.chat.id] = ""
     
 @bot.message_handler(func=lambda m: m.chat.id in feedback_users and m.text != '/end')
@@ -281,7 +284,7 @@ def end_feedback(message):
     feedback_message = f"Обратная связь от {user_name} {user_username} (ID: {message.chat.id}):\n{feedback}"
     
     bot.send_message(ADMIN_CHAT_ID, feedback_message)
-    bot.reply_to(message, "Спасибо за ваш отзыв!")
+    safe_send_message(message.chat.id, "Спасибо за ваш отзыв!")
  
 
 @bot.message_handler(commands=['broadcast'])
@@ -335,9 +338,13 @@ def specialty_callback(call):
 Язык обучения: {specialty_data[5]}
 Описание: {specialty_data[6]}
 """
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=response)
+        try:
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=response)
+        except ApiTelegramException as e:
+            if e.result.status_code == 403:
+                print(f'User {call.message.chat.id} has blocked the bot.')
     else:
-        bot.send_message(call.message.chat.id, "Извините, информация о данной специальности отсутствует.")
+        safe_send_message(call.message.chat.id, "Извините, информация о данной специальности отсутствует.")
     
   
 
@@ -366,7 +373,7 @@ def send_schedule(message):
         closest_teacher = find_closest_key(query, teacher_schedule_dict.keys())
         response = f"Извините, расписание для {query} не найдено. Вы имели в виду группу {closest_group} или преподавателя {closest_teacher}?"
 
-    bot.reply_to(message, response)
+    safe_send_message(message.chat.id, response) 
 bot.polling()
 
 
