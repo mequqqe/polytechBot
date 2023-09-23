@@ -30,10 +30,14 @@ def save_schedule_file(downloaded_file):
 
 def load_latest_schedule():
     list_of_files = glob.glob(os.path.join(SCHEDULE_DIR, '*.docx')) 
-    latest_file = max(list_of_files, key=os.path.getctime)
-    print(f"Loading schedule from {latest_file}")
-    with open(latest_file, 'rb') as f:
-        return f.read()
+    if list_of_files:  # Проверка на пустую последовательность
+        latest_file = max(list_of_files, key=os.path.getctime)
+        print(f"Loading schedule from {latest_file}")
+        with open(latest_file, 'rb') as f:
+            return f.read()
+    else:
+        print("No files found in the directory.")
+        return None
 
 def load_schedule_file():
     schedule_file_path = os.path.join(SCHEDULE_DIR)
