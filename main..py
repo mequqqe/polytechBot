@@ -93,9 +93,9 @@ def add_or_update_user(chat_id, first_name, last_name, username):
     conn.commit()
     conn.close()
 
-def safe_send_message(chat_id, message_text):
+def safe_send_message(chat_id, message_text, markup=None):
     try:
-        bot.send_message(chat_id, message_text)
+        bot.send_message(chat_id, message_text, reply_markup=markup) 
     except ApiTelegramException as e:
         if e.result.status_code == 403:
             print(f'User {chat_id} has blocked the bot.')
@@ -224,7 +224,7 @@ def send_welcome(message):
 
 Что вы хотите сделать?
 """
-    safe_send_message(message.chat.id, instruction)
+    safe_send_message(message.chat.id, instruction, markup)  
 
 def notify_all_users(message_text):
     conn = sqlite3.connect('users.db')
