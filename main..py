@@ -3,6 +3,7 @@ import time
 import telebot
 from docx import Document
 from telebot.apihelper import ApiTelegramException
+from docx.shared import RGBColor
 import io
 import Levenshtein
 import sqlite3
@@ -155,33 +156,40 @@ def fetch_all_specialties():
 # Fetch all specialties for testing
 fetch_all_specialties()
 
-
-
+def is_online(cell):
+    try:
+        # Проверка цвета фона ячейки (предположим, что желтый цвет имеет RGB-код (255, 255, 0))
+        shading_elm = cell._element.get_or_add_tcPr().get_or_add_shd()
+        fill = shading_elm.fill
+        return fill == "FFFF00"  # RGB код для жёлтого цвета в HEX
+    except Exception as e:
+        print(f"Could not determine cell color: {e}")
+        return False
+    
 def improved_parse_schedule(docx_file):
     doc = Document(docx_file)
     time_intervals = [cell.text.strip() for cell in doc.tables[0].rows[0].cells][1::2]
     schedule = {}
     for table in doc.tables:
         for row in table.rows:
-            cells = [cell.text.strip() for cell in row.cells]
-            room = cells.pop(0)
+            cells = [cell for cell in row.cells]  # Сохраняем ячейки для дальнейшего анализа
+            room = cells.pop(0).text.strip()
 
-            # Process data in pairs (Teacher, Group)
             for i in range(0, len(cells) - 1, 2):
-                teachers = cells[i].split("\n") if i < len(cells) else []
-                groups = cells[i+1].split("\n") if (i+1) < len(cells) else []
-                
+                teachers = cells[i].text.strip().split("\n") if i < len(cells) else []
+                groups = cells[i+1].text.strip().split("\n") if (i+1) < len(cells) else []
+
                 for teacher, group in zip(teachers, groups):
                     if not teacher or not group:
                         continue
 
                     if group not in schedule:
                         schedule[group] = {}
-                    
+
                     interval_index = i // 2
                     current_interval = time_intervals[interval_index]
 
-                    schedule[group][current_interval] = {'room': room, 'teacher': teacher}
+                    schedule[group][current_interval] = {'room': room, 'teacher': teacher, 'pair_number': interval_index + 1}
 
                     # Populate teacher_schedule_dict
                     if teacher not in teacher_schedule_dict:
@@ -367,22 +375,31 @@ def specialty_callback(call):
     else:
         safe_send_message(call.message.chat.id, "Извините, информация о данной специальности отсутствует.")
     
-  
+def format_time(time_str):
+    if '-' in time_str:
+        start_time, end_time = time_str.split('-')
+    else:
+        start_time, end_time = time_str, time_str
+
+    formatted_start_time = f"{start_time[:2]}:{start_time[2:]}"
+    formatted_end_time = f"{end_time[:2]}:{end_time[2:]}"
+    
+    return f"{formatted_start_time}-{formatted_end_time}"
+
 
 @bot.message_handler(func=lambda m: True)
 def send_schedule(message):
-    if message.chat.id == ADMIN_CHAT_ID and (message.text == "/broadcast" or message.text == "/endbroadcast"):
-        return
     query = message.text
     response = ""
 
-    # Try to find group first
     if query in schedule_dict:
         schedule_for_group = schedule_dict[query]
-        response = "Расписание для группы {}:".format(query)
-        for _, details in schedule_for_group.items():
+        response = f"Расписание для группы {query}:"
+        
+        for interval, details in schedule_for_group.items():
             teacher_info = details["teacher"] if details["teacher"] else "Преподаватель: Не указан"
-            response += "\nАудитория: {} - {}".format(details["room"], teacher_info)
+            pair_number = details["pair_number"]
+            response += f"\nПара {pair_number} - Аудитория: {details['room']} - {teacher_info}"
     elif query in teacher_schedule_dict:
         schedule_for_teacher = teacher_schedule_dict[query]
         response = "Расписание для преподавателя {}:".format(query)
@@ -394,8 +411,7 @@ def send_schedule(message):
         closest_teacher = find_closest_key(query, teacher_schedule_dict.keys())
         response = f"Извините, расписание для {query} не найдено. Вы имели в виду группу {closest_group} или преподавателя {closest_teacher}?"
 
-    safe_send_message(message.chat.id, response) 
-
+    safe_send_message(message.chat.id, response)
 def ping_telegram():
     try:
         response = requests.get("https://api.telegram.org")
