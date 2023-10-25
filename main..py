@@ -13,6 +13,8 @@ import requests
 bot = telebot.TeleBot('6303559793:AAGysyRYVE0v_WCROLLDYXh9ApFbm4CmhYo')
 ADMIN_CHAT_ID = 2099795903
 
+SECOND_ADMIN_CHAT_ID = 867694148
+
 # Директория для хранения файла расписания
 SCHEDULE_DIR = 'schedule_files'
 if not os.path.exists(SCHEDULE_DIR):
@@ -254,7 +256,7 @@ def handle_docs(message):
     add_or_update_user(message.chat.id, message.from_user.first_name, message.from_user.last_name, message.from_user.username)
     
     # Если это админ, позволим загрузить расписание
-    if message.chat.id == ADMIN_CHAT_ID:
+    if message.chat.id == ADMIN_CHAT_ID or message.chat.id == SECOND_ADMIN_CHAT_ID:
         global schedule_dict
         if message.document.mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
             file_info = bot.get_file(message.document.file_id)
