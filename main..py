@@ -189,7 +189,12 @@ def improved_parse_schedule(docx_file):
                         schedule[group] = {}
 
                     interval_index = i // 2
-                    current_interval = time_intervals[interval_index]
+                    if interval_index < len(time_intervals):
+                        current_interval = time_intervals[interval_index]
+    # ваш остальной код
+                    else:
+    # обработка ситуации, когда interval_index больше или равен длине списка
+                        print(f"Error: interval_index {interval_index} is out of range for time_intervals.")
 
                     schedule[group][current_interval] = {'room': room, 'teacher': teacher, 'pair_number': interval_index + 1}
 
