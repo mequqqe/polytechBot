@@ -175,7 +175,13 @@ def improved_parse_schedule(docx_file):
     for table in doc.tables:
         for row in table.rows:
             cells = [cell for cell in row.cells]  # Сохраняем ячейки для дальнейшего анализа
-            room = cells.pop(0).text.strip()
+            if cells:
+                room = cells.pop(0).text.strip()
+    # ваш остальной код
+            else:
+    # обработка ситуации, когда cells пустой
+                print("Error: Attempted to pop from an empty list (cells).")
+
 
             for i in range(0, len(cells) - 1, 2):
                 teachers = cells[i].text.strip().split("\n") if i < len(cells) else []
